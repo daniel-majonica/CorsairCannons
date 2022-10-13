@@ -12,8 +12,9 @@ namespace JSONData
             return JsonUtility.FromJson<Stats>(file);
         }
     }
+
     [System.Serializable]
-    public class Stats
+    public struct Stats
     {
         public float Health;
         public float Speed;

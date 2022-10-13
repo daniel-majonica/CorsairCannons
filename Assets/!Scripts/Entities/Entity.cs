@@ -6,11 +6,11 @@ using UnityEngine;
 /// </summary>
 public abstract class Entity : MonoBehaviour
 {
-    [SerializeField] private string StatPath = "standard";
-    [SerializeField] private Stats Stats;
+    [SerializeField] private string _statPath = "standard";
+    [SerializeField] private Stats _stats;
 
     protected virtual void Start()
     {
-        Stats = Access.GetStats(StatPath);
+        _stats = Access.GetStats(_statPath);
     }
 }
