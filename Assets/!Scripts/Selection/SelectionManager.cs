@@ -32,7 +32,7 @@ public class SelectionManager : ManagerModule
     protected virtual void Update()
     {
         if(ExecuteSelection)
-            ExecuteSelectionUpdate(Manager.Use<InputManager>().MousePosition);
+            ExecuteSelectionUpdate();
     }
 
     protected virtual void OnEnable()
@@ -95,10 +95,9 @@ public class SelectionManager : ManagerModule
     }
 
 
-    public void ExecuteSelectionUpdate(Vector2 cursorScreenPosition)
+    public void ExecuteSelectionUpdate()
     {
-        Ray selectionRay = Camera.main.ScreenPointToRay(cursorScreenPosition);
-        if(!Physics.Raycast(selectionRay, out RaycastHit hit, Mathf.Infinity, _layerMask) || !TryGetSelectable(hit.collider.gameObject, out ISelectable newFocus))
+        if(!Physics.Raycast(Manager.Use<InputManager>().MouseFocusRay, out RaycastHit hit, Mathf.Infinity, _layerMask) || !TryGetSelectable(hit.collider.gameObject, out ISelectable newFocus))
         {
             //No valid selectable in focus
             if (Focused != null) //Update: Lose current focus object
