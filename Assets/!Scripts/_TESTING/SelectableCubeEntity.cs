@@ -6,7 +6,7 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
 
     public GameObject SelectableObject => gameObject;
 
-    [SerializeField] private Renderer _renderer;
+    [SerializeField] private Renderer[] _renderers;
     [SerializeField] private Color _focusColor = Color.yellow;
     [SerializeField] private Color _selectionColor = Color.green;
 
@@ -15,13 +15,18 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
 
     protected virtual void Awake()
     {
-        if(_renderer != null)
-            _renderer = GetComponentInChildren<Renderer>();
+        if(_renderers == null)
+            _renderers = GetComponentsInChildren<Renderer>();
 
-        if (_renderer == null)
+        if (_renderers == null)
             Debug.LogWarning($"[{nameof(SelectableCubeEntity)} on: {gameObject.name}] Could not find valid renderer.", this);
         else
-            _nativeColor = _renderer.material.GetColor(MainColorUrpShaderKey);
+        {
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                _nativeColor = _renderers[i].material.GetColor(MainColorUrpShaderKey);
+            }
+        }
     }
 
 
@@ -51,6 +56,9 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
 
     private void SwitchToColor(Color c)
     {
-        _renderer.material.SetColor(MainColorUrpShaderKey, c);
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            _renderers[i].material.SetColor(MainColorUrpShaderKey, c);
+        }
     }
 }
