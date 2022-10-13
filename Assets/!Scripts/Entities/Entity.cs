@@ -1,3 +1,4 @@
+using JSONData;
 using UnityEngine;
 
 /// <summary>
@@ -5,5 +6,11 @@ using UnityEngine;
 /// </summary>
 public abstract class Entity : MonoBehaviour
 {
+    [SerializeField] private string StatPath = "standard";
+    [SerializeField] private Stats Stats;
 
+    protected virtual void Start()
+    {
+        Stats = Access.GetStats(StatPath);
+    }
 }
