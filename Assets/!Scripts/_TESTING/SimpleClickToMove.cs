@@ -1,6 +1,4 @@
 using EmptySkull.Management;
-using EmptySkull.Utilities;
-using System;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -27,13 +25,6 @@ public class SimpleClickToMove : MonoBehaviour
 
     private void HandelMousePressed()
     {
-        _navAgent.destination = ReadCurrentTargetWorldPosition();
-
-        Vector3 ReadCurrentTargetWorldPosition()
-        {
-            if(!UnityMath.TryIntersectionPlaneRay(new Plane(Vector3.up, 0f), Manager.Use<InputManager>().MouseFocusRay, out Vector3 target))
-                throw new InvalidOperationException("Could not find a valid target position from current input focus ray.");
-            return target;
-        }
+        _navAgent.destination = Manager.Use<InputManager>().FocusPointOnWater;
     }
 }
