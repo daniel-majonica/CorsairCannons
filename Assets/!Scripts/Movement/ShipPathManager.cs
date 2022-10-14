@@ -1,25 +1,70 @@
 using EmptySkull.Management;
 using EmptySkull.Utilities;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class ShipPathManager : ManagerModule
 {
+    public enum PathGenerationState
+    {
+        Inactive,
+        Starting,
+        Generating
+    }
+
     public struct ShipPathWaypoint
     {
         public Vector2 Position;
-        public Vector2 Heading;
+        public Vector2 IncommingDirection;
 
-        public ShipPathWaypoint(Vector2 pos, Vector2 heading)
+        public ShipPathWaypoint(Vector2 pos, Vector2 incommingDirection)
         {
             Position = pos;
-            Heading = heading;
+            IncommingDirection = incommingDirection;
         }
     }
 
-    public struct ShipPath //No custom structure required?
+    public struct ShipPath
     {
-        public ShipPathWaypoint[] Waypoints;
+        public float StepSize;
+        public List<ShipPathWaypoint> Waypoints;
+
+        public float PathLength => Waypoints.Count * StepSize;
+
+        public ShipPath(ShipPathWaypoint initalWaypoint, float stepSize)
+        {
+            StepSize = stepSize;
+            Waypoints = new List<ShipPathWaypoint> { initalWaypoint };
+        }
+
+        public Vector2 Evaluate(float pathPosition, out float curvature) //TODO Fix
+        {
+            if (pathPosition < 0 || pathPosition > Waypoints.Count * StepSize)
+                throw new ArgumentException($"Position '{pathPosition}' not valid in path.");
+
+            float indexAccurate = pathPosition / StepSize;
+            int index = (int)indexAccurate;
+
+            ShipPathWaypoint a;
+            ShipPathWaypoint? b = null;
+
+            a = Waypoints[index];
+
+            if (Mathf.Abs(index - indexAccurate) > Mathf.Epsilon)
+                b = Waypoints[index + 1];    
+
+            if(!b.HasValue)
+            {
+                curvature = 0f;
+                return a.Position;
+            }
+            else
+            {
+                return Bezier2DHelper.Sample(a.Position, a.IncommingDirection, b.Value.Position, b.Value.IncommingDirection, indexAccurate - index, out curvature);
+            }
+        }
     }
 
     public float MinTargetUpdateDistanceSqr => _minTargetUpdateDistance * _minTargetUpdateDistance;
@@ -28,29 +73,60 @@ public class ShipPathManager : ManagerModule
     [Sirenix.OdinInspector.DisableIf("@UnityEngine.Application.isPlaying")]
 #endif
     [SerializeField] private float _minStartPathDistance = 2f;
+#if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.DisableIf("@UnityEngine.Application.isPlaying")]
+#endif
     [SerializeField] private float _pathStepSize = .5f;
     [SerializeField] private float _minTargetUpdateDistance = .05f;
 
-    private Dictionary<Ship, ShipPath> _activePaths = new Dictionary<Ship, ShipPath>();
 
-    private bool _isBuildingPath;
-    private List<ShipPathWaypoint> _currentBuildingWaypoints = new List<ShipPathWaypoint>();
-    private Ship _currentBuildingShip;
+#if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.Title("Debugging")]
+    [Sirenix.OdinInspector.ShowInInspector(), Sirenix.OdinInspector.ReadOnly()]
+#endif
+    private PathGenerationState _state;
 
-    private float _minStartPathDistSqr;
-
-
-    protected override void Awake()
+    private ShipPath? _buildingPath;
+    private bool IsBuildingPath
     {
-        base.Awake();
-
-        _minStartPathDistSqr = _minStartPathDistance * _minStartPathDistance;
+        get => _buildingPath.HasValue;
+        set => _buildingPath = value ? throw new InvalidOperationException("Cannot set 'isBuildPath' to true without having a valid starting path point.") : null;
     }
+    private ShipPath BuildingPath
+    {
+        get => _buildingPath.Value;
+        set => _buildingPath = value;
+    }
+
+    private Ship _buildingPathShip;
+
+    private float? _minStartPathDistSqrValue;
+    private float MinStartPathDistSqr
+    {
+        get
+        {
+            if (!_minStartPathDistSqrValue.HasValue)
+                _minStartPathDistSqrValue = _minStartPathDistance * _minStartPathDistance;
+            return _minStartPathDistSqrValue.Value;
+        }
+    }
+
+    private float? _pathStepSizeSqrValue;
+    private float PathSetepSizeSqr
+    {
+        get
+        {
+            if (!_pathStepSizeSqrValue.HasValue)
+                _pathStepSizeSqrValue = _pathStepSize * _pathStepSize;
+            return _pathStepSizeSqrValue.Value;
+        }
+    }
+
 
     protected virtual void Update()
     {
-        if (_isBuildingPath)
-            UpdatePathBuilding();
+        if (_state != PathGenerationState.Inactive)
+            UpdatePathWaypoints();
     }
 
     protected virtual void OnEnable()
@@ -65,116 +141,125 @@ public class ShipPathManager : ManagerModule
         Manager.Use<InputManager>().OnMouseLeftReleased -= EndCurrentPathBuilding;
     }
 
+
     protected virtual void OnDrawGizmos()
     {
-        //Draw currently building path
-        if(_isBuildingPath)
+        switch(_state)
         {
-            using (new GizmoColorSwitcher(Color.red))
-            {
-                if(_currentBuildingShip != null)
-                    Gizmos.DrawWireSphere(_currentBuildingShip.transform.position, 1f);
-
-                foreach (ShipPathWaypoint waypoint in _currentBuildingWaypoints)
+            case PathGenerationState.Inactive:
+                return;
+            case PathGenerationState.Starting:
+                using (new GizmoColorSwitcher(Color.yellow))
                 {
-                    Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), .1f);
-                    Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.Heading) * .2f);
+                    Gizmos.DrawWireSphere(_buildingPathShip.transform.position, .5f);
+                    Gizmos.DrawLine(_buildingPathShip.transform.position, Manager.Use<InputManager>().FocusPointOnWater);
                 }
-            }
-        }
-    }
+                break;
+            case PathGenerationState.Generating:
+                using (new GizmoColorSwitcher(Color.red))
+                {
+                    Gizmos.DrawWireSphere(_buildingPathShip.transform.position, .5f);
 
+                    foreach (ShipPathWaypoint waypoint in BuildingPath.Waypoints)
+                    {
+                        Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), .05f);
+                        Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.IncommingDirection).normalized * .1f);
+                    }
+                }
+                using(new GizmoColorSwitcher(Color.yellow))
+                {
+                    for(float samplePoint = 0; samplePoint < BuildingPath.PathLength; samplePoint += .01f)
+                    {
+                        Vector2 point = BuildingPath.Evaluate(samplePoint, out _);
 
-    public void ReportShipPathUpdate(Ship ship, int reachedPathIndex)
-    {
-        if (!_activePaths.TryGetValue(ship, out ShipPath path)) //No active path for ship
-        {
-            ship.ClearTarget();
-        }
-        else if (reachedPathIndex +1 >= path.Waypoints.Length) //Ship reached end of path
-        {
-            ship.ClearTarget();
-            _activePaths.Remove(ship);
-        }
-        else
-        {
-            int newTargetIndex = reachedPathIndex +1;
-            ship.SetTarget(path.Waypoints[newTargetIndex].Position, newTargetIndex);
+                        Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(point), .01f);
+                    }
+                }
+                break;
         }
     }
 
 
     private void HandelTryStartNewPath()
     {
-        if (_isBuildingPath)
-            return; //Cannot build path while already building
+        if (IsBuildingPath)
+            return; //Cannot start path when already building a path
 
-        if (!TryGetCurrentSelectedShipPosition(out Ship selectedShip, out Vector2 selectedShipPos))
-            return; //Cannot build path when no ship is selected
+        if (!TryGetPathStartingShip(out Ship selectedShip))
+            return; //Cannot start path when no ship is selected
 
-        if (PlanarProjectionHelper.DistanceSqr(selectedShipPos, Manager.Use<InputManager>().FocusPointOnWater2D) > _minStartPathDistSqr)
-            return; //Cannot start path to far away from selected ship
+        if (PlanarProjectionHelper.DistanceSqr(selectedShip.transform.position, Manager.Use<InputManager>().FocusPointOnWater2D) > MinStartPathDistSqr)
+            return; //Cannot start path when starting path distance is to far away.
 
-        StartPathBuilding(selectedShip);
+        _buildingPathShip = selectedShip;
+        _state = PathGenerationState.Starting;
 
-        bool TryGetCurrentSelectedShipPosition(out Ship ship, out Vector2 pos)
+        bool TryGetPathStartingShip(out Ship ship)
         {
-            pos = Vector2.zero;
-            ISelectable selectedEntity = Manager.Use<SelectionManager>().Selected;
-
-            ship = (Ship)selectedEntity;
-            if (ship == null)
+            ISelectable selected = Manager.Use<SelectionManager>().Selected;
+            if (selected == null || selected is not Ship s)
+            {
+                ship = null;
                 return false;
-
-            if (selectedEntity == null)
-                return false;
-
-            pos = PlanarProjectionHelper.AsPlanarVector(selectedEntity.SelectableObject.transform.position);
+            }
+            ship = s;
             return true;
         }
     }
 
-    private void StartPathBuilding(Ship ship)
+    private void UpdatePathWaypoints()
     {
-        if(_activePaths.ContainsKey(ship))
+        switch(_state)
         {
-            _activePaths.Remove(ship);
+            case PathGenerationState.Inactive: //Do not process anything
+                return; 
+            case PathGenerationState.Starting: //Try generate first path waypoint (and assign to ship)
+
+                Vector2 shipPlanarPosition = PlanarProjectionHelper.AsPlanarVector(_buildingPathShip.transform.position);
+                Vector2 toNextWaypointOrigin = PlanarProjectionHelper.Between(shipPlanarPosition, Manager.Use<InputManager>().FocusPointOnWater2D);
+
+                if (toNextWaypointOrigin.sqrMagnitude < PathSetepSizeSqr)
+                    return; //Current point to close to ship-position to start path
+
+                ShipPathWaypoint pathOrigin = new ShipPathWaypoint(shipPlanarPosition, Vector2.zero /*GetShipCurrentHeading(_buildingPathShip)*/);
+
+                Vector2 targetPosition = shipPlanarPosition + toNextWaypointOrigin.normalized * _pathStepSize;
+                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateNextDirection(pathOrigin, targetPosition));
+
+                BuildingPath = new ShipPath(pathOrigin, _pathStepSize); //Add inital point for ship
+                BuildingPath.Waypoints.Add(firstWaypoint); //Add first waypoint to approach
+
+                _state = PathGenerationState.Generating;
+
+                break;
+            case PathGenerationState.Generating: //Try geberate further path waypoints
+
+                ShipPathWaypoint lastWaypoint = BuildingPath.Waypoints.Last();
+
+                Vector2 toNextWaypoint = PlanarProjectionHelper.Between(lastWaypoint.Position, Manager.Use<InputManager>().FocusPointOnWater2D);
+
+                if (toNextWaypoint.sqrMagnitude < PathSetepSizeSqr)
+                    return; //Not enough distant to last waypoint to create new one.
+
+                Vector2 newWaypointPosition = lastWaypoint.Position + toNextWaypoint.normalized * _pathStepSize;
+
+                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateNextDirection(lastWaypoint, newWaypointPosition));
+
+                BuildingPath.Waypoints.Add(newWaypoint);
+
+                break;
         }
 
-        _currentBuildingWaypoints.Clear();
+        Vector2 GetShipCurrentHeading(Ship ship) //TODO Might need more complex behaviour to estimate ship heading by speed
+            => ship.Heading; //TODO Get current speed!
 
-        _currentBuildingWaypoints.Add(new ShipPathWaypoint(PlanarProjectionHelper.AsPlanarVector(ship.transform.position), ship.Heading.normalized));
-        _currentBuildingShip = ship;
-
-        _isBuildingPath = true;
-    }
-
-    private void UpdatePathBuilding()
-    {
-        Vector2 lastWaypointPos = _currentBuildingWaypoints[_currentBuildingWaypoints.Count - 1].Position;
-        Vector2 lastToNext = PlanarProjectionHelper.Between(lastWaypointPos, Manager.Use<InputManager>().FocusPointOnWater2D);
-        if (lastToNext.sqrMagnitude < _pathStepSize)
-            return; //To close to last point for new point
-
-        //TODO Check angle
-
-        _currentBuildingWaypoints.Add(new ShipPathWaypoint(lastWaypointPos + lastToNext.normalized * _pathStepSize, lastToNext.normalized));
+        Vector2 CalculateNextDirection(ShipPathWaypoint origin, Vector2 target) //TODO More robust calculation needed!
+            => (target - origin.Position).normalized * _buildingPathShip.Speed;
     }
 
     private void EndCurrentPathBuilding()
     {
-        if (!_isBuildingPath)
-            return;
-
-        if(_currentBuildingShip != null && _currentBuildingWaypoints.Count > 1)
-        {
-            _activePaths.Add(_currentBuildingShip, new ShipPath { Waypoints = _currentBuildingWaypoints.ToArray() });
-            _currentBuildingShip.SetTarget(_activePaths[_currentBuildingShip].Waypoints[1].Position, 1);
-        }
-
-        _currentBuildingWaypoints.Clear();
-        _currentBuildingShip = null;
-
-        _isBuildingPath = false;
+        IsBuildingPath = false;
+        _state = PathGenerationState.Inactive;
     }
 }
