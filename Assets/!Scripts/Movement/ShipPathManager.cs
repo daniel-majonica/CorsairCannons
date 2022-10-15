@@ -31,7 +31,7 @@ public class ShipPathManager : ManagerModule
         public float StepSize;
         public List<ShipPathWaypoint> Waypoints;
 
-        public float PathLength => Waypoints.Count * StepSize;
+        public float PathLength => Waypoints.Count -1 * StepSize;
 
         public ShipPath(ShipPathWaypoint initalWaypoint, float stepSize)
         {
@@ -41,7 +41,7 @@ public class ShipPathManager : ManagerModule
 
         public Vector2 Evaluate(float pathPosition, out float curvature) //TODO Fix
         {
-            if (pathPosition < 0 || pathPosition > Waypoints.Count * StepSize)
+            if (pathPosition < 0 || pathPosition > PathLength)
                 throw new ArgumentException($"Position '{pathPosition}' not valid in path.");
 
             float indexAccurate = pathPosition / StepSize;
@@ -52,8 +52,11 @@ public class ShipPathManager : ManagerModule
 
             a = Waypoints[index];
 
-            if (Mathf.Abs(index - indexAccurate) > Mathf.Epsilon)
-                b = Waypoints[index + 1];    
+            float localIndex = indexAccurate - index;
+
+            //Debug.Log($"[Max] Path lengh and position: {PathLength} | {pathPosition} | {index} | {indexAccurate}");
+            if (Mathf.Abs(localIndex) > Mathf.Epsilon)
+                b = Waypoints[index + 1];
 
             if(!b.HasValue)
             {
@@ -62,7 +65,7 @@ public class ShipPathManager : ManagerModule
             }
             else
             {
-                return Bezier2DHelper.Sample(a.Position, a.IncommingDirection, b.Value.Position, b.Value.IncommingDirection, indexAccurate - index, out curvature);
+                return Bezier2DHelper.Sample(a.Position, a.IncommingDirection, b.Value.Position, b.Value.IncommingDirection, localIndex, out curvature);
             }
         }
     }
@@ -79,6 +82,7 @@ public class ShipPathManager : ManagerModule
     [SerializeField] private float _pathStepSize = .5f;
     [SerializeField] private float _minTargetUpdateDistance = .05f;
 
+    [SerializeField, Range(0,1f)] private float _bezierSmoothing = 1;
 
 #if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Title("Debugging")]
@@ -163,15 +167,15 @@ public class ShipPathManager : ManagerModule
                     foreach (ShipPathWaypoint waypoint in BuildingPath.Waypoints)
                     {
                         Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), .05f);
-                        Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.IncommingDirection).normalized * .1f);
+                        Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.IncommingDirection));
                     }
                 }
-                using(new GizmoColorSwitcher(Color.yellow))
+                for (float samplePoint = 0; samplePoint <= BuildingPath.PathLength; samplePoint += .01f)
                 {
-                    for(float samplePoint = 0; samplePoint < BuildingPath.PathLength; samplePoint += .01f)
-                    {
-                        Vector2 point = BuildingPath.Evaluate(samplePoint, out _);
+                    Vector2 point = BuildingPath.Evaluate(samplePoint, out float curvature);
 
+                    using(new GizmoColorSwitcher(Color.Lerp(Color.green, Color.red, curvature)))
+                    {
                         Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(point), .01f);
                     }
                 }
@@ -224,7 +228,7 @@ public class ShipPathManager : ManagerModule
                 ShipPathWaypoint pathOrigin = new ShipPathWaypoint(shipPlanarPosition, Vector2.zero /*GetShipCurrentHeading(_buildingPathShip)*/);
 
                 Vector2 targetPosition = shipPlanarPosition + toNextWaypointOrigin.normalized * _pathStepSize;
-                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateNextDirection(pathOrigin, targetPosition));
+                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateNextDirection(pathOrigin.Position, targetPosition)); //TODO Add relative speed of ship
 
                 BuildingPath = new ShipPath(pathOrigin, _pathStepSize); //Add inital point for ship
                 BuildingPath.Waypoints.Add(firstWaypoint); //Add first waypoint to approach
@@ -234,27 +238,27 @@ public class ShipPathManager : ManagerModule
                 break;
             case PathGenerationState.Generating: //Try geberate further path waypoints
 
-                ShipPathWaypoint lastWaypoint = BuildingPath.Waypoints.Last();
+                Vector2 lastWaypointPosition = BuildingPath.Waypoints[BuildingPath.Waypoints.Count -1].Position;
 
-                Vector2 toNextWaypoint = PlanarProjectionHelper.Between(lastWaypoint.Position, Manager.Use<InputManager>().FocusPointOnWater2D);
+                Vector2 toNextWaypoint = PlanarProjectionHelper.Between(lastWaypointPosition, Manager.Use<InputManager>().FocusPointOnWater2D);
 
                 if (toNextWaypoint.sqrMagnitude < PathSetepSizeSqr)
                     return; //Not enough distant to last waypoint to create new one.
 
-                Vector2 newWaypointPosition = lastWaypoint.Position + toNextWaypoint.normalized * _pathStepSize;
+                Vector2 newWaypointPosition = lastWaypointPosition + toNextWaypoint.normalized * _pathStepSize;
 
-                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateNextDirection(lastWaypoint, newWaypointPosition));
+                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateNextDirection(lastWaypointPosition, newWaypointPosition));
 
                 BuildingPath.Waypoints.Add(newWaypoint);
 
                 break;
         }
 
-        Vector2 GetShipCurrentHeading(Ship ship) //TODO Might need more complex behaviour to estimate ship heading by speed
-            => ship.Heading; //TODO Get current speed!
+        //Vector2 GetShipCurrentHeading(Ship ship) //TODO Might need more complex behaviour to estimate ship heading by speed
+        //    => ship.Heading; //TODO Get current speed!
 
-        Vector2 CalculateNextDirection(ShipPathWaypoint origin, Vector2 target) //TODO More robust calculation needed!
-            => (target - origin.Position).normalized * _buildingPathShip.Speed;
+        Vector2 CalculateNextDirection(Vector2 origin, Vector2 target, float speedRelative = 1f) //TODO More robust calculation needed!
+            => (target - origin) * .5f * speedRelative * _bezierSmoothing;
     }
 
     private void EndCurrentPathBuilding()
