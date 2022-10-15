@@ -1551,7 +1551,8 @@ MonoBehaviour:
   _minStartPathDistance: 2
   _pathStepSize: 1
   _minTargetUpdateDistance: 0.05
-  _bezierSmoothing: 1
+  _bezierSmoothing: 0.65
+  _autoadjustHeading: 1
 --- !u!1 &2052469164
 GameObject:
   m_ObjectHideFlags: 0

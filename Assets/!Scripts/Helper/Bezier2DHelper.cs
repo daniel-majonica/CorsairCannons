@@ -4,7 +4,7 @@ using UnityEngine;
 public static class Bezier2DHelper
 {
     //TODO Cleanup
-    public static Vector2 Sample(Vector2 from, Vector2 fromDirection, Vector2 to, Vector2 toDirection, float delta, out float curvature)
+    public static Vector2 Sample(Vector2 from, Vector2 fromDirection, Vector2 to, Vector2 toDirection, float delta, out Vector2 normal)
     {
         if (delta < 0f || delta > 1f)
             throw new ArgumentException("Delta must be between 0 and 1");
@@ -30,7 +30,9 @@ public static class Bezier2DHelper
         Vector2 tempOrigin = v1 + (v2 - v1) * delta;
         Vector2 tempDirection = (v2 + (v3 - v2) * delta) - tempOrigin;
 
-        curvature = 1 - ((Vector2.Dot(toDirection.normalized, tempDirection.normalized) + 1) / 2);
+        //curvature = 1 - ((Vector2.Dot((to - from).normalized, tempDirection.normalized) + 1) / 2);
+
+        normal = Vector2.Perpendicular(tempDirection);
 
         return tempOrigin + tempDirection * delta;
     }

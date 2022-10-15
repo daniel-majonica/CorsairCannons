@@ -2,7 +2,6 @@ using EmptySkull.Management;
 using EmptySkull.Utilities;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class ShipPathManager : ManagerModule
@@ -17,17 +16,19 @@ public class ShipPathManager : ManagerModule
     public struct ShipPathWaypoint
     {
         public Vector2 Position;
-        public Vector2 IncommingDirection;
+        public Vector2 Heading;
 
-        public ShipPathWaypoint(Vector2 pos, Vector2 incommingDirection)
+        public ShipPathWaypoint(Vector2 pos, Vector2 heading)
         {
             Position = pos;
-            IncommingDirection = incommingDirection;
+            Heading = heading;
         }
     }
 
     public struct ShipPath
     {
+        public const float CurvatureSampleOffset = .25f;
+
         public float StepSize;
         public List<ShipPathWaypoint> Waypoints;
 
@@ -39,34 +40,72 @@ public class ShipPathManager : ManagerModule
             Waypoints = new List<ShipPathWaypoint> { initalWaypoint };
         }
 
-        public Vector2 Evaluate(float pathPosition, out float curvature) //TODO Fix
+        public Vector2 Evaluate(float pathPosition, out float curvature)
         {
-            if (pathPosition < 0 || pathPosition > PathLength)
+            if (!ValidatePathPosition(pathPosition, PathLength))
                 throw new ArgumentException($"Position '{pathPosition}' not valid in path.");
 
-            float indexAccurate = pathPosition / StepSize;
-            int index = (int)indexAccurate;
+            Vector2 pointPosition = SamplePointInternal(Waypoints, pathPosition, StepSize, out Vector2 pointNormal);
 
-            ShipPathWaypoint a;
-            ShipPathWaypoint? b = null;
+            Vector2? normalBefore = null;
+            Vector2? normalAfter = null;
 
-            a = Waypoints[index];
-
-            float localIndex = indexAccurate - index;
-
-            //Debug.Log($"[Max] Path lengh and position: {PathLength} | {pathPosition} | {index} | {indexAccurate}");
-            if (Mathf.Abs(localIndex) > Mathf.Epsilon)
-                b = Waypoints[index + 1];
-
-            if(!b.HasValue)
+            float samplePositionBefore = pathPosition - CurvatureSampleOffset;
+            if (ValidatePathPosition(samplePositionBefore, PathLength))
             {
-                curvature = 0f;
-                return a.Position;
+                SamplePointInternal(Waypoints, samplePositionBefore, StepSize, out Vector2 normal);
+                normalBefore = normal;
             }
-            else
+
+            float samplePositionAfter = pathPosition + CurvatureSampleOffset;
+            if(ValidatePathPosition(samplePositionAfter, PathLength))
             {
-                return Bezier2DHelper.Sample(a.Position, a.IncommingDirection, b.Value.Position, b.Value.IncommingDirection, localIndex, out curvature);
+                SamplePointInternal(Waypoints, samplePositionAfter, StepSize, out Vector2 normal);
+                normalAfter = normal;
             }
+
+            curvature = 0;
+
+            if (normalBefore.HasValue)
+                curvature += (1 - (Vector2.Dot(normalBefore.Value.normalized, pointNormal.normalized) + 1) * .5f) * .5f;
+
+            if (normalAfter.HasValue)
+                curvature += (1 - (Vector2.Dot(normalAfter.Value.normalized, pointNormal.normalized) + 1) * .5f) * .5f;
+
+            return pointPosition;
+
+            Vector2 SamplePointInternal(List<ShipPathWaypoint> waypoints, float pathPosition, float stepSize, out Vector2 normal)
+            {
+                float indexAccurate = pathPosition / stepSize;
+                int index = (int)indexAccurate;
+
+                ShipPathWaypoint a;
+                ShipPathWaypoint? b = null;
+
+                a = waypoints[index];
+
+                float localIndex = indexAccurate - index;
+
+                if (Mathf.Abs(localIndex) > Mathf.Epsilon)
+                    b = waypoints[index + 1];
+
+                Vector2 point;
+
+                if (!b.HasValue)
+                {
+                    point = a.Position;
+                    normal = Vector2.Perpendicular(a.Heading);
+                }
+                else
+                {
+                    point = Bezier2DHelper.Sample(a.Position, a.Heading, b.Value.Position, b.Value.Heading, localIndex, out normal);
+                }
+
+                return point;
+            }
+
+            bool ValidatePathPosition(float pathPosition, float pathLength)
+                => pathPosition >= 0 && pathPosition < pathLength;
         }
     }
 
@@ -82,8 +121,9 @@ public class ShipPathManager : ManagerModule
     [SerializeField] private float _pathStepSize = .5f;
     [SerializeField] private float _minTargetUpdateDistance = .05f;
 
-    [SerializeField, Range(0,1f)] private float _bezierSmoothing = 1;
-
+    [SerializeField, Range(0,2f)] private float _bezierSmoothing = 1;
+    [SerializeField] private bool _autoadjustHeading = true;
+    
 #if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Title("Debugging")]
     [Sirenix.OdinInspector.ShowInInspector(), Sirenix.OdinInspector.ReadOnly()]
@@ -167,14 +207,14 @@ public class ShipPathManager : ManagerModule
                     foreach (ShipPathWaypoint waypoint in BuildingPath.Waypoints)
                     {
                         Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), .05f);
-                        Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.IncommingDirection));
+                        Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.Heading));
                     }
                 }
-                for (float samplePoint = 0; samplePoint <= BuildingPath.PathLength; samplePoint += .01f)
+                for (float samplePoint = 0; samplePoint <= BuildingPath.PathLength; samplePoint += .05f)
                 {
                     Vector2 point = BuildingPath.Evaluate(samplePoint, out float curvature);
 
-                    using(new GizmoColorSwitcher(Color.Lerp(Color.green, Color.red, curvature)))
+                    using(new GizmoColorSwitcher(Color.Lerp(Color.white, Color.red, Mathf.Clamp01(curvature * 4f))))
                     {
                         Gizmos.DrawSphere(PlanarProjectionHelper.FromPlanarVector(point), .01f);
                     }
@@ -238,7 +278,8 @@ public class ShipPathManager : ManagerModule
                 break;
             case PathGenerationState.Generating: //Try geberate further path waypoints
 
-                Vector2 lastWaypointPosition = BuildingPath.Waypoints[BuildingPath.Waypoints.Count -1].Position;
+                ShipPathWaypoint lastWaypoint = BuildingPath.Waypoints[BuildingPath.Waypoints.Count - 1];
+                Vector2 lastWaypointPosition = lastWaypoint.Position;
 
                 Vector2 toNextWaypoint = PlanarProjectionHelper.Between(lastWaypointPosition, Manager.Use<InputManager>().FocusPointOnWater2D);
 
@@ -251,6 +292,11 @@ public class ShipPathManager : ManagerModule
 
                 BuildingPath.Waypoints.Add(newWaypoint);
 
+                if (_autoadjustHeading)
+                {
+                    lastWaypoint.Heading = (lastWaypoint.Heading + toNextWaypoint).normalized * .5f * _bezierSmoothing;
+                    BuildingPath.Waypoints[BuildingPath.Waypoints.Count - 2] = lastWaypoint;
+                }
                 break;
         }
 
