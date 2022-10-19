@@ -1,11 +1,30 @@
 using UnityEngine;
 
+[RequireComponent(typeof(ShipPathFollower))]
 public class Ship : Entity, ISelectable
 {
     public GameObject SelectableObject => gameObject;
-    public Vector2 Heading => PlanarProjectionHelper.AsPlanarVector(transform.forward);
 
 
-    [SerializeField] private float _speed = 1f;
-    public float Speed => _speed;
+    private ShipPathFollower _pathFollowerValue;
+    private ShipPathFollower PathFollower
+    {
+        get
+        {
+            if (_pathFollowerValue == null)
+                _pathFollowerValue = GetComponent<ShipPathFollower>();
+            return _pathFollowerValue;
+        }
+    }
+
+#if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.Title("Debugging")]
+    [Sirenix.OdinInspector.ShowInInspector, Sirenix.OdinInspector.ReadOnly]
+#endif
+    public float CurrentSpeed => PathFollower.EffectiveSpeed;
+
+    public void AssignNewPath(ShipPathManager.ShipPath path)
+    {
+        PathFollower.AssignPath(path);
+    }
 }

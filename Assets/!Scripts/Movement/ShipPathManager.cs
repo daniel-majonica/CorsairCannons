@@ -32,7 +32,7 @@ public class ShipPathManager : ManagerModule
         public float StepSize;
         public List<ShipPathWaypoint> Waypoints;
 
-        public float PathLength => Waypoints.Count -1 * StepSize;
+        public float PathLength => (Waypoints.Count - 1) * StepSize;
 
         public ShipPath(ShipPathWaypoint initalWaypoint, float stepSize)
         {
@@ -86,6 +86,7 @@ public class ShipPathManager : ManagerModule
 
                 float localIndex = indexAccurate - index;
 
+                //Debug.Log($"[Max] Out of range: {index + 1} > {waypoints.Count} | raw-index: {indexAccurate} | raw input: {pathPosition}");
                 if (Mathf.Abs(localIndex) > Mathf.Epsilon)
                     b = waypoints[index + 1];
 
@@ -210,7 +211,7 @@ public class ShipPathManager : ManagerModule
                         Gizmos.DrawRay(PlanarProjectionHelper.FromPlanarVector(waypoint.Position), PlanarProjectionHelper.FromPlanarVector(waypoint.Heading));
                     }
                 }
-                for (float samplePoint = 0; samplePoint <= BuildingPath.PathLength; samplePoint += .05f)
+                for (float samplePoint = 0; samplePoint < BuildingPath.PathLength; samplePoint += .05f)
                 {
                     Vector2 point = BuildingPath.Evaluate(samplePoint, out float curvature);
 
@@ -265,13 +266,15 @@ public class ShipPathManager : ManagerModule
                 if (toNextWaypointOrigin.sqrMagnitude < PathSetepSizeSqr)
                     return; //Current point to close to ship-position to start path
 
-                ShipPathWaypoint pathOrigin = new ShipPathWaypoint(shipPlanarPosition, Vector2.zero /*GetShipCurrentHeading(_buildingPathShip)*/);
-
                 Vector2 targetPosition = shipPlanarPosition + toNextWaypointOrigin.normalized * _pathStepSize;
-                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateNextDirection(pathOrigin.Position, targetPosition)); //TODO Add relative speed of ship
+
+                ShipPathWaypoint pathOrigin = new ShipPathWaypoint(shipPlanarPosition, CalculateHeading(shipPlanarPosition, targetPosition));
+                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateHeading(pathOrigin.Position, targetPosition));
 
                 BuildingPath = new ShipPath(pathOrigin, _pathStepSize); //Add inital point for ship
                 BuildingPath.Waypoints.Add(firstWaypoint); //Add first waypoint to approach
+
+                _buildingPathShip.AssignNewPath(BuildingPath);
 
                 _state = PathGenerationState.Generating;
 
@@ -288,13 +291,13 @@ public class ShipPathManager : ManagerModule
 
                 Vector2 newWaypointPosition = lastWaypointPosition + toNextWaypoint.normalized * _pathStepSize;
 
-                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateNextDirection(lastWaypointPosition, newWaypointPosition));
+                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateHeading(lastWaypointPosition, newWaypointPosition));
 
                 BuildingPath.Waypoints.Add(newWaypoint);
 
                 if (_autoadjustHeading)
                 {
-                    lastWaypoint.Heading = (lastWaypoint.Heading + toNextWaypoint).normalized * .5f * _bezierSmoothing;
+                    lastWaypoint.Heading = (lastWaypoint.Heading + toNextWaypoint).normalized * _pathStepSize * .5f * _bezierSmoothing;
                     BuildingPath.Waypoints[BuildingPath.Waypoints.Count - 2] = lastWaypoint;
                 }
                 break;
@@ -303,8 +306,8 @@ public class ShipPathManager : ManagerModule
         //Vector2 GetShipCurrentHeading(Ship ship) //TODO Might need more complex behaviour to estimate ship heading by speed
         //    => ship.Heading; //TODO Get current speed!
 
-        Vector2 CalculateNextDirection(Vector2 origin, Vector2 target, float speedRelative = 1f) //TODO More robust calculation needed!
-            => (target - origin) * .5f * speedRelative * _bezierSmoothing;
+        Vector2 CalculateHeading(Vector2 origin, Vector2 target)
+            => (target - origin).normalized * _pathStepSize * .5f * _bezierSmoothing;
     }
 
     private void EndCurrentPathBuilding()
