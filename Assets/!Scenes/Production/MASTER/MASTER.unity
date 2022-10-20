@@ -1549,7 +1549,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _minStartPathDistance: 2
-  _pathStepSize: 0.25
+  _pathStepSize: 1
   _minTargetUpdateDistance: 0.05
   _bezierSmoothing: 0.65
   _autoadjustHeading: 1

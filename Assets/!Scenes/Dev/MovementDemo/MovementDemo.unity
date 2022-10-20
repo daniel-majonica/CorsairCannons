@@ -593,7 +593,7 @@ GameObject:
   m_Component:
   - component: {fileID: 591681727}
   - component: {fileID: 591681728}
-  - component: {fileID: 591681730}
+  - component: {fileID: 591681732}
   - component: {fileID: 591681731}
   m_Layer: 0
   m_Name: DummyShip
@@ -631,18 +631,6 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 0.55, y: 0.55, z: 1}
   m_Center: {x: 0, y: 0.175, z: 0}
---- !u!114 &591681730
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 591681726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 635f630fd2ecb944385f9c2af42b900a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &591681731
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -680,6 +668,21 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  _useJumpSmoothing: 1
+  _jumpSmoothingThreshold: 0.05
+  _jumpSmoothingStrength: 0.25
+--- !u!114 &591681732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 591681726}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 635f630fd2ecb944385f9c2af42b900a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &659071804
 PrefabInstance:
   m_ObjectHideFlags: 0

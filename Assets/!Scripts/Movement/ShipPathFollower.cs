@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class ShipPathFollower : MonoBehaviour
@@ -5,6 +6,17 @@ public class ShipPathFollower : MonoBehaviour
     public float MaxSpeed = 1f; //Unity-units per second
 
     [SerializeField] private AnimationCurve _speedModByCurvature = AnimationCurve.Linear(0f, 1f, 1f, 0f);
+
+    [SerializeField] private bool _useJumpSmoothing = true;
+#if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.HideIf("@!_useJumpSmoothing")]
+    [Sirenix.OdinInspector.DisableIf("@UnityEngine.Application.isPlaying")]
+#endif
+    [SerializeField] private float _jumpSmoothingThreshold = .05f;
+#if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.HideIf("@!_useJumpSmoothing")]
+#endif
+    [SerializeField] private float _jumpSmoothingStrength = .25f;
 
     private ShipPathManager.ShipPath? _path;
     private bool HasPath => _path.HasValue;
@@ -14,6 +26,18 @@ public class ShipPathFollower : MonoBehaviour
     public float EffectiveSpeed { get; private set; }
 
 
+    public event Action OnPathFinished;
+    public event Action OnPathCanceled;
+    public event Action OnPathEnded;
+
+    private float _jumpSmoothingThresholdSqr;
+    private Vector3 _jumpSmoothingVelocity;
+
+    protected virtual void Awake()
+    {
+        _jumpSmoothingThresholdSqr = _jumpSmoothingThreshold * _jumpSmoothingThreshold;
+    }
+
     protected virtual void Update()
     {
         ExecuteMovementUpdate();
@@ -22,13 +46,19 @@ public class ShipPathFollower : MonoBehaviour
 
     public void AssignPath(ShipPathManager.ShipPath path)
     {
+        _lastPathPosition = 0;
         _path = path;
     }
 
-    public void RemovePath()
+    public void RemovePath(bool isCancel = true)
     {
         _path = null;
         _lastPathPosition = 0;
+
+        OnPathEnded?.Invoke();
+
+        if (isCancel)
+            OnPathCanceled?.Invoke();
     }
 
 
@@ -41,7 +71,9 @@ public class ShipPathFollower : MonoBehaviour
 
         if (_lastPathPosition > Path.PathLength)
         {
-            RemovePath();
+            RemovePath(false);
+
+            OnPathFinished?.Invoke();
             return;
         }
 
@@ -52,7 +84,16 @@ public class ShipPathFollower : MonoBehaviour
         Vector3 targetPos3D = PlanarProjectionHelper.FromPlanarVector(targetPosition);
         Vector3 targetFaceing = targetPos3D - transform.position;
 
-        transform.position = targetPos3D;
+        if(_useJumpSmoothing && (targetPos3D - transform.position).sqrMagnitude > _jumpSmoothingThresholdSqr)
+        {
+            transform.position = Vector3.SmoothDamp(transform.position, targetPos3D, ref _jumpSmoothingVelocity, _jumpSmoothingStrength);
+        }
+        else
+        {
+            _jumpSmoothingVelocity = Vector3.zero;
+            transform.position = targetPos3D;
+        }
+
         if (targetFaceing.normalized.sqrMagnitude > Mathf.Epsilon) //Facing away from zero required to calculate rotation
             transform.rotation = Quaternion.LookRotation(targetFaceing.normalized, Vector3.up);
     }

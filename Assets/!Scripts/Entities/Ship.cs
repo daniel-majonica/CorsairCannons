@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 [RequireComponent(typeof(ShipPathFollower))]
@@ -22,6 +23,22 @@ public class Ship : Entity, ISelectable
     [Sirenix.OdinInspector.ShowInInspector, Sirenix.OdinInspector.ReadOnly]
 #endif
     public float CurrentSpeed => PathFollower.EffectiveSpeed;
+
+    public event Action OnPathEndReached;
+
+    private Action _pathFinishedAction;
+
+    protected virtual void OnEnable()
+    {
+        _pathFinishedAction = () => OnPathEndReached?.Invoke();
+        PathFollower.OnPathFinished += _pathFinishedAction;
+    }
+
+    protected virtual void OnDisable()
+    {
+        PathFollower.OnPathFinished -= _pathFinishedAction;
+    }
+
 
     public void AssignNewPath(ShipPathManager.ShipPath path)
     {

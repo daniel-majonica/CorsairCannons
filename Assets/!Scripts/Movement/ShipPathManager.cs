@@ -237,6 +237,8 @@ public class ShipPathManager : ManagerModule
             return; //Cannot start path when starting path distance is to far away.
 
         _buildingPathShip = selectedShip;
+        _buildingPathShip.OnPathEndReached += HandelBuildingShipReachedPathEnd;
+
         _state = PathGenerationState.Starting;
 
         bool TryGetPathStartingShip(out Ship ship)
@@ -268,8 +270,8 @@ public class ShipPathManager : ManagerModule
 
                 Vector2 targetPosition = shipPlanarPosition + toNextWaypointOrigin.normalized * _pathStepSize;
 
-                ShipPathWaypoint pathOrigin = new ShipPathWaypoint(shipPlanarPosition, CalculateHeading(shipPlanarPosition, targetPosition));
-                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateHeading(pathOrigin.Position, targetPosition));
+                ShipPathWaypoint pathOrigin = new ShipPathWaypoint(shipPlanarPosition, CalculateHeadingForward());
+                ShipPathWaypoint firstWaypoint = new ShipPathWaypoint(targetPosition, CalculateHeadingBetween(pathOrigin.Position, targetPosition));
 
                 BuildingPath = new ShipPath(pathOrigin, _pathStepSize); //Add inital point for ship
                 BuildingPath.Waypoints.Add(firstWaypoint); //Add first waypoint to approach
@@ -291,7 +293,7 @@ public class ShipPathManager : ManagerModule
 
                 Vector2 newWaypointPosition = lastWaypointPosition + toNextWaypoint.normalized * _pathStepSize;
 
-                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateHeading(lastWaypointPosition, newWaypointPosition));
+                ShipPathWaypoint newWaypoint = new ShipPathWaypoint(newWaypointPosition, CalculateHeadingBetween(lastWaypointPosition, newWaypointPosition));
 
                 BuildingPath.Waypoints.Add(newWaypoint);
 
@@ -303,16 +305,34 @@ public class ShipPathManager : ManagerModule
                 break;
         }
 
-        //Vector2 GetShipCurrentHeading(Ship ship) //TODO Might need more complex behaviour to estimate ship heading by speed
-        //    => ship.Heading; //TODO Get current speed!
+        Vector2 CalculateHeadingForward()
+            => HeadingVector(PlanarProjectionHelper.AsPlanarVector(_buildingPathShip.transform.forward));
+        Vector2 CalculateHeadingBetween(Vector2 origin, Vector2 target)
+            => HeadingVector(target - origin);
 
-        Vector2 CalculateHeading(Vector2 origin, Vector2 target)
-            => (target - origin).normalized * _pathStepSize * .5f * _bezierSmoothing;
+        Vector2 HeadingVector(Vector2 v)
+            => v.normalized * _pathStepSize * .5f * _bezierSmoothing;
     }
 
     private void EndCurrentPathBuilding()
     {
         IsBuildingPath = false;
         _state = PathGenerationState.Inactive;
+
+        if(_buildingPathShip != null)
+        {
+            _buildingPathShip.OnPathEndReached -= HandelBuildingShipReachedPathEnd;
+            _buildingPathShip = null;
+        }
+    }
+
+    private void HandelBuildingShipReachedPathEnd()
+    {
+        if (_buildingPathShip == null)
+            throw new InvalidOperationException("Cannot handel new path for active ship. No ship active");
+
+        _buildingPath = null;
+
+        _state = PathGenerationState.Starting;
     }
 }
