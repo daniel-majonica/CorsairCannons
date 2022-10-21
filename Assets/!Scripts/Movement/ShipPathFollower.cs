@@ -1,9 +1,11 @@
+using DG.Tweening;
 using System;
 using UnityEngine;
 
 public class ShipPathFollower : MonoBehaviour
 {
     public float MaxSpeed = 1f; //Unity-units per second
+    [SerializeField, Range(0,1f)] private float WaitingSpeedModifier = 0f;
 
     [SerializeField] private AnimationCurve _speedModByCurvature = AnimationCurve.Linear(0f, 1f, 1f, 0f);
 
@@ -17,6 +19,16 @@ public class ShipPathFollower : MonoBehaviour
     [Sirenix.OdinInspector.HideIf("@!_useJumpSmoothing")]
 #endif
     [SerializeField] private float _jumpSmoothingStrength = .25f;
+
+    [SerializeField] private bool _useTweening = true;
+#if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.HideIf("@!_useTweening")]
+#endif
+    [SerializeField] private float _tweenTime = 1f;
+
+
+    private float _currentSpeedModifier;
+
 
     private ShipPathManager.ShipPath? _path;
     private bool HasPath => _path.HasValue;
@@ -55,10 +67,35 @@ public class ShipPathFollower : MonoBehaviour
         _path = null;
         _lastPathPosition = 0;
 
+        if(_useTweening)
+            _currentSpeedModifier = 0;
+
         OnPathEnded?.Invoke();
 
         if (isCancel)
             OnPathCanceled?.Invoke();
+    }
+
+    public void StartWaiting()
+    {
+        SetRelativeSpeed(WaitingSpeedModifier);
+    }
+
+    public void EndWaiting()
+    {
+        SetRelativeSpeed(1f);
+    }
+
+
+    public void SetRelativeSpeed(float modifier, bool neverTween = false)
+    {
+        if (modifier < 0 || modifier > 1)
+            throw new ArgumentException("Relative speed modifier must be between 0 and 1!");
+
+        if(neverTween || !_useTweening)
+            _currentSpeedModifier = modifier;
+        else
+            DOTween.To(() => EffectiveSpeed / MaxSpeed, x => _currentSpeedModifier = x, modifier, _tweenTime);
     }
 
 
@@ -79,7 +116,7 @@ public class ShipPathFollower : MonoBehaviour
 
         Vector2 targetPosition = Path.Evaluate(_lastPathPosition, out float curvature);
 
-        EffectiveSpeed = MaxSpeed * _speedModByCurvature.Evaluate(curvature);
+        EffectiveSpeed = MaxSpeed * _currentSpeedModifier * _speedModByCurvature.Evaluate(curvature);
 
         Vector3 targetPos3D = PlanarProjectionHelper.FromPlanarVector(targetPosition);
         Vector3 targetFaceing = targetPos3D - transform.position;

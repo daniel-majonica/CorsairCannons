@@ -124,7 +124,9 @@ public class ShipPathManager : ManagerModule
 
     [SerializeField, Range(0,2f)] private float _bezierSmoothing = 1;
     [SerializeField] private bool _autoadjustHeading = true;
-    
+
+    [SerializeField] private bool _waitWhileDrawPath = true;
+
 #if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Title("Debugging")]
     [Sirenix.OdinInspector.ShowInInspector(), Sirenix.OdinInspector.ReadOnly()]
@@ -277,6 +279,8 @@ public class ShipPathManager : ManagerModule
                 BuildingPath.Waypoints.Add(firstWaypoint); //Add first waypoint to approach
 
                 _buildingPathShip.AssignNewPath(BuildingPath);
+                if (_waitWhileDrawPath)
+                    _buildingPathShip.SetPathWaiting(true);
 
                 _state = PathGenerationState.Generating;
 
@@ -321,6 +325,8 @@ public class ShipPathManager : ManagerModule
 
         if(_buildingPathShip != null)
         {
+            _buildingPathShip.SetPathWaiting(false);
+
             _buildingPathShip.OnPathEndReached -= HandelBuildingShipReachedPathEnd;
             _buildingPathShip = null;
         }

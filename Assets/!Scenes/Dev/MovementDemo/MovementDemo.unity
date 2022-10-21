@@ -644,6 +644,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MaxSpeed: 1
+  WaitingSpeedModifier: 0
   _speedModByCurvature:
     serializedVersion: 2
     m_Curve:
@@ -671,6 +672,8 @@ MonoBehaviour:
   _useJumpSmoothing: 1
   _jumpSmoothingThreshold: 0.05
   _jumpSmoothingStrength: 0.25
+  _useTweening: 1
+  _tweenTime: 1
 --- !u!114 &591681732
 MonoBehaviour:
   m_ObjectHideFlags: 0

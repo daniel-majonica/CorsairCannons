@@ -44,4 +44,12 @@ public class Ship : Entity, ISelectable
     {
         PathFollower.AssignPath(path);
     }
+
+    public void SetPathWaiting(bool state)
+    {
+        if (state)
+            PathFollower.StartWaiting();
+        else
+            PathFollower.EndWaiting();
+    }
 }
