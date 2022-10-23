@@ -25,8 +25,12 @@ public class SelectionManager : ManagerModule
 #endif
     public ISelectable Focused { get; private set; }
 
+    public bool HasSelected => Selected != null;
+    public bool HasFocused => Focused != null;
+
     [SerializeField] private bool _invokeCallbackOnChildren = true;
     [SerializeField] private LayerMask _layerMask = ~0;
+
 
 
     protected virtual void Update()

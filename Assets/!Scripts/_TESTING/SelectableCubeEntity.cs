@@ -10,7 +10,7 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
     [SerializeField] private Color _focusColor = Color.yellow;
     [SerializeField] private Color _selectionColor = Color.green;
 
-    private Color _nativeColor;
+    private Color[] _nativeColors;
     private bool _isSelected;
 
     protected virtual void Awake()
@@ -22,9 +22,10 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
             Debug.LogWarning($"[{nameof(SelectableCubeEntity)} on: {gameObject.name}] Could not find valid renderer.", this);
         else
         {
+            _nativeColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
             {
-                _nativeColor = _renderers[i].material.GetColor(MainColorUrpShaderKey);
+                _nativeColors[i] = _renderers[i].material.GetColor(MainColorUrpShaderKey);
             }
         }
     }
@@ -32,7 +33,7 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
 
     public void HandelDeselected()
     {
-        SwitchToColor(_nativeColor);
+        SwitchToColor(_nativeColors);
         _isSelected = false;
     }
 
@@ -45,7 +46,7 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
     public void HandelLoseFocus()
     {
         if(!_isSelected)
-            SwitchToColor(_nativeColor);
+            SwitchToColor(_nativeColors);
     }
 
     public void HandelSelected()
@@ -54,11 +55,19 @@ public class SelectableCubeEntity : Entity, ISelectable, ISelectionCallbackRecei
         _isSelected = true;
     }
 
-    private void SwitchToColor(Color c)
+    private void SwitchToColor(Color[] colors)
     {
         for (int i = 0; i < _renderers.Length; i++)
         {
-            _renderers[i].material.SetColor(MainColorUrpShaderKey, c);
+            _renderers[i].material.SetColor(MainColorUrpShaderKey, colors[i]);
+        }
+    }
+
+    private void SwitchToColor(Color color)
+    {
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            _renderers[i].material.SetColor(MainColorUrpShaderKey, color);
         }
     }
 }
