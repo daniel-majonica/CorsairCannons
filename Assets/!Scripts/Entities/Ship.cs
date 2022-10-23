@@ -42,7 +42,7 @@ public class Ship : Entity, ISelectable
 
     public void AssignNewPath(ShipPathManager.ShipPath path)
     {
-        PathFollower.AssignPath(path);
+        PathFollower.AssignPath(path, _stats.MaxSpeed);
     }
 
     public void SetPathWaiting(bool state)

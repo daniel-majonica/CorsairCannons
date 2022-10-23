@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028352, g: 0.22571376, b: 0.30692244, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -643,7 +643,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c5b20aadb8c0a4429add87a6b66620f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxSpeed: 1
   WaitingSpeedModifier: 0
   _speedModByCurvature:
     serializedVersion: 2
@@ -686,6 +685,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 635f630fd2ecb944385f9c2af42b900a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _statPath: standard
+  _stats:
+    Health: 100
+    Speed: 1
+    DamagePerCannon: 10
 --- !u!1001 &659071804
 PrefabInstance:
   m_ObjectHideFlags: 0

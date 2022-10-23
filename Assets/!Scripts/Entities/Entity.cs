@@ -6,8 +6,8 @@ using UnityEngine;
 /// </summary>
 public abstract class Entity : MonoBehaviour
 {
-    [SerializeField] private string _statPath = "standard";
-    [SerializeField] private Stats _stats;
+    [SerializeField] protected string _statPath = "standard";
+    [SerializeField] protected Stats _stats;
 
     protected virtual void Start()
     {

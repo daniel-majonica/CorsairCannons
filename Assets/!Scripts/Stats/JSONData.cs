@@ -17,7 +17,10 @@ namespace JSONData
     public struct Stats
     {
         public float Health;
-        public float Speed;
+        /// <summary>
+        /// Unity-units per second
+        /// </summary>
+        public float MaxSpeed; 
         public float DamagePerCannon;
     }
 }

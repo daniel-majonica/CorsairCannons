@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class ShipPathFollower : MonoBehaviour
 {
-    public float MaxSpeed = 1f; //Unity-units per second
+    private float _maxSpeed = 1f; //Unity-units per second, controlled by stats json
     [SerializeField, Range(0,1f)] private float WaitingSpeedModifier = 0f;
 
     [SerializeField] private AnimationCurve _speedModByCurvature = AnimationCurve.Linear(0f, 1f, 1f, 0f);
@@ -56,10 +56,11 @@ public class ShipPathFollower : MonoBehaviour
     }
 
 
-    public void AssignPath(ShipPathManager.ShipPath path)
+    public void AssignPath(ShipPathManager.ShipPath path, float speed)
     {
         _lastPathPosition = 0;
         _path = path;
+        _maxSpeed = speed;
     }
 
     public void RemovePath(bool isCancel = true)
@@ -95,7 +96,7 @@ public class ShipPathFollower : MonoBehaviour
         if(neverTween || !_useTweening)
             _currentSpeedModifier = modifier;
         else
-            DOTween.To(() => EffectiveSpeed / MaxSpeed, x => _currentSpeedModifier = x, modifier, _tweenTime);
+            DOTween.To(() => EffectiveSpeed / _maxSpeed, x => _currentSpeedModifier = x, modifier, _tweenTime);
     }
 
 
@@ -116,7 +117,7 @@ public class ShipPathFollower : MonoBehaviour
 
         Vector2 targetPosition = Path.Evaluate(_lastPathPosition, out float curvature);
 
-        EffectiveSpeed = MaxSpeed * _currentSpeedModifier * _speedModByCurvature.Evaluate(curvature);
+        EffectiveSpeed = _maxSpeed * _currentSpeedModifier * _speedModByCurvature.Evaluate(curvature);
 
         Vector3 targetPos3D = PlanarProjectionHelper.FromPlanarVector(targetPosition);
         Vector3 targetFaceing = targetPos3D - transform.position;

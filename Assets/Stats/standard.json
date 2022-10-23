@@ -1,5 +1,5 @@
 {
     "Health": 100.0,
-    "Speed": 5.0,
+    "MaxSpeed": 1.0,
     "DamagePerCannon": 10.0
 }
