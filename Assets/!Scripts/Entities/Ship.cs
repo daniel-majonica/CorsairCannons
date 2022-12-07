@@ -2,9 +2,10 @@ using System;
 using UnityEngine;
 
 [RequireComponent(typeof(ShipPathFollower))]
-public class Ship : Entity, ISelectable
+public class Ship : Entity, ISelectable, ITargetable
 {
     public GameObject SelectableObject => gameObject;
+    public GameObject TargetObject => gameObject;
 
 
     private ShipPathFollower _pathFollowerValue;
