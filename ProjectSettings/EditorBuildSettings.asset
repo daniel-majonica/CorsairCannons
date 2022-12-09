@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/!Scenes/Production/MASTER/MASTER.unity
     guid: 166f509701dc20540b64cb37e30e3cb8
+  - enabled: 1
+    path: Assets/!Scenes/Dev/MovementDemo/MovementDemo.unity
+    guid: 88ad12a7ead0fdb4380eeedacdedcbdd
   m_configObjects: {}

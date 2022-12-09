@@ -33,7 +33,7 @@ namespace EmptySkull.Utilities
             _setToNullProp.boolValue = !EditorGUI.Toggle(setToNullRect, !_setToNullProp.boolValue);
 
             bool enabledBefore = GUI.enabled;
-            if (!_setToNullProp.boolValue)
+            if (_setToNullProp.boolValue)
                 GUI.enabled = false;
 
             EditorGUI.PropertyField(valueRect, _valueProp, GUIContent.none);

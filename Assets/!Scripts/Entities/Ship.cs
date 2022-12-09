@@ -1,3 +1,4 @@
+using EmptySkull.Management;
 using System;
 using UnityEngine;
 
@@ -5,7 +6,7 @@ using UnityEngine;
 public class Ship : Entity, ISelectable, ITargetable
 {
     public GameObject SelectableObject => gameObject;
-    public GameObject TargetObject => gameObject;
+    public Vector3 WorldPosition => transform.position;
 
 
     private ShipPathFollower _pathFollowerValue;
@@ -33,11 +34,15 @@ public class Ship : Entity, ISelectable, ITargetable
     {
         _pathFinishedAction = () => OnPathEndReached?.Invoke();
         PathFollower.OnPathFinished += _pathFinishedAction;
+
+        Manager.Use<TargetPositionManager>().RegisterTarget(this);
     }
 
     protected virtual void OnDisable()
     {
         PathFollower.OnPathFinished -= _pathFinishedAction;
+
+        Manager.Use<TargetPositionManager>().DeregisterTarget(this);
     }
 
 

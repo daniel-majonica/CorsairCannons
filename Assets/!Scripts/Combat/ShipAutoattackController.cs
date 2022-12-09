@@ -1,7 +1,9 @@
+using EmptySkull.Management;
 using EmptySkull.Utilities;
-using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
+[RequireComponent(typeof(Ship))]
 public class ShipAutoattackController : MonoBehaviour
 {
     [System.Serializable]
@@ -12,13 +14,18 @@ public class ShipAutoattackController : MonoBehaviour
         public Ray TargetRay => AttackOrigin.GetForwardRay();
     }
 
+    [DisableIf("@UnityEngine.Application.isPlaying")]
     [SerializeField] private float _detectionRange = 5f;
+    [SerializeField] private NullableFloat _detectionRateSeconds = new NullableFloat() { SetToNull = true };
     [SerializeField] private ShipAttackEmitter[] _emitter;
 
-    private SphereTriggerController _sphereTrigger;
 
-    private HashSet<ITargetable> _targetablesInRange = new HashSet<ITargetable>();
+    private ITargetable[] _targetablesInRange;
+    private float _detectionRangeSqr;
 
+
+    private Ship _ship;
+    private float _detectionTimer;
 
     protected virtual void OnDrawGizmos()
     {
@@ -33,65 +40,53 @@ public class ShipAutoattackController : MonoBehaviour
             }
         }
 
-        using (new GizmoColorSwitcher(Color.red))
+        using(new GizmoColorSwitcher(new Color(0, 1f, 0, .25f)))
         {
-            foreach(ITargetable targetable in _targetablesInRange)
+            Gizmos.DrawWireSphere(transform.position, _detectionRange);
+        }
+
+        using (new GizmoColorSwitcher(new Color(1f, 0, 0, .25f)))
+        {
+            if (_targetablesInRange != null)
             {
-                Gizmos.DrawWireSphere(targetable.TargetObject.transform.position, .5f);
+                foreach (ITargetable targetable in _targetablesInRange)
+                {
+                    Gizmos.DrawWireSphere(targetable.WorldPosition, .5f);
+                }
             }
         }
     }
 
     protected virtual void Awake()
     {
-        GameObject triggerObj = new GameObject("- SphereTrigger -");
-        MakeChild(triggerObj.transform);
+        _detectionRangeSqr = _detectionRange * _detectionRange;
 
-        _sphereTrigger = triggerObj.AddComponent<SphereTriggerController>();
-        _sphereTrigger.Radius = _detectionRange;
+        _ship = GetComponent<Ship>();
+    }
 
-        void MakeChild(Transform tChild)
+    protected virtual void Start()
+    {
+        UpdateTargetsInRange();
+    }
+
+    protected virtual void Update()
+    {
+        if(_detectionRateSeconds.TryGetValue(out float detectionRate))
         {
-            tChild.SetParent(transform);
-            tChild.localPosition = Vector3.zero;
-            tChild.rotation = Quaternion.identity;
-            tChild.localScale = Vector3.zero;
+            _detectionTimer += Time.deltaTime;
+
+            if (_detectionTimer < detectionRate)
+                return;
+
+            _detectionTimer -= detectionRate;
         }
-    }
 
-    protected virtual void OnEnable()
-    {
-        _sphereTrigger.OnTriggerEntered += HandelCollisionDetected;
-        _sphereTrigger.OnTriggerExited += HandelCollisionDetectionLost;
-    }
-
-    protected virtual void OnDisable()
-    {
-        _sphereTrigger.OnTriggerEntered -= HandelCollisionDetected;
-        _sphereTrigger.OnTriggerExited -= HandelCollisionDetectionLost;
+        UpdateTargetsInRange();
     }
 
 
-    private void HandelCollisionDetected(Collider detectedCollider)
+    private void UpdateTargetsInRange()
     {
-        ITargetable[] targetableComponents = detectedCollider.gameObject.GetComponentsInChildren<ITargetable>();
-        if (targetableComponents.Length >= 1)
-        {
-            _targetablesInRange.Add(targetableComponents[0]);
-
-            if (targetableComponents.Length > 1)
-                Debug.LogWarning($"[{nameof(ShipAutoattackController)} on: {gameObject.name}] More that 1 '{nameof(ITargetable)}' on the same GameObject detected. " +
-                    $"This is not supported. Only the first scrip (of type '{targetableComponents[0].GetType().Name}') will be assigned as target.");
-        }
-    }
-
-    private void HandelCollisionDetectionLost(Collider detectedCollider)
-    {
-        ITargetable[] targetableComponents = detectedCollider.gameObject.GetComponentsInChildren<ITargetable>();
-
-        if(targetableComponents.Length >= 1)
-        {
-            _targetablesInRange.Remove(targetableComponents[0]);
-        }
+        _targetablesInRange = Manager.Use<TargetPositionManager>().GetTargetsInRangeSqr(_ship, _detectionRangeSqr);
     }
 }

@@ -2,5 +2,5 @@ using UnityEngine;
 
 public interface ITargetable
 {
-    GameObject TargetObject { get; }
+    Vector3 WorldPosition { get; }
 }
