@@ -1,0 +1,96 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3187518104079236995
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3187518104079236996}
+  - component: {fileID: 3187518104079236998}
+  - component: {fileID: 3187518104079236997}
+  m_Layer: 0
+  m_Name: Target
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3187518104079236996
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3187518104079236995}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &3187518104079236998
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3187518104079236995}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  m_Radius: 0.125
+  m_Height: 1
+  m_Direction: 0
+  m_Center: {x: 0, y: 0.09, z: 0}
+--- !u!114 &3187518104079236997
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3187518104079236995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3027f475235a4f7ab39c90b4bbf8567, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  splatMaterial: {fileID: 2100000, guid: 644c5fbe7e0624b239c5c09b7d1613ae, type: 2}
+  rateOverSteps: 1
+  rateOverTime: 0
+  rateOverDistance: 0
+  overridePosition: 0
+  position: {x: 0, y: 0}
+  positionRandomness: 0
+  overrideRotation: 1
+  rotation: 0
+  rotationRandomness: 0
+  scaleWithDistance: 1
+  scaleWithTransform: 0
+  scale: {x: 0.4, y: 0.4}
+  scaleRandomness: 0
+  velocityWeight: 1
+  velocityTexture: {fileID: 0}
+  maxRelativeVelocity: 2
+  velocityScale: {x: 1, y: 1, z: 0.25}
+  maxRelativeAngularVelocity: 12
+  angularVelocityScale: 1
+  force: {x: 0, y: 0, z: 0}
+  torque: 0
+  densityWeight: 1
+  densityTexture: {fileID: 2800000, guid: a2e7ead8889a04301b67bdd80469b3d3, type: 3}
+  srcBlend: 1
+  dstBlend: 10
+  blendOp: 0
+  color: {r: 1, g: 0.24056602, b: 0.3913518, a: 1}
+  noiseTexture: {fileID: 0}
+  densityNoise: 0
+  densityNoiseOffset: 0
+  densityNoiseTiling: 1
+  velocityNoise: 0
+  velocityNoiseOffset: 0
+  velocityNoiseTiling: 1
